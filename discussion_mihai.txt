@@ -1,0 +1,134 @@
+1. Can't provide flow-level consistency.
+Anything that relies on specific control plane behavior cannot be provided by
+P4.
+
+P4 programs talk only about one current packet.
+
+Formal semantics right now:
+===========
+
+Each of the blocks: parser, control, ...
+each defines a thread.
+
+That thread is invoked when a packet shows up. Thread runs to completion for
+that packet.  Thread parameters: metadata, headers, and local variables, all
+these are thread local and there is no intereference.
+
+When a packet comes, a new thread is created, and the thread is run with the
+packet.  It has local state within the thread.
+
+Now, what happens with extern objects?
+registers are extern objects in the P4 16 as well.
+
+Everything that is not extern is very simple and clean. Extern is not clear
+though.
+
+When you have an extern object, it's not per thread, it's a global variable,
+and it's statically allocated.
+
+Multiple threads running concurrently access the same object.  Having an atomic
+on the block would imply that each atomic block within a thread executes as a
+single instruction.
+
+atomic wrapper around P4 instructions.
+
+atomic { .; ; ; } : all or nothing behavior.
+atomic {increment_counter}
+
+atomic on code is more general.
+
+Sensible defaults: Are all methods on extern objects atomic?
+Let's not put that restriction.
+
+Compiler doesn't assume anything about any extern object method.
+
+Increment method on two packets.
+
+Methods aren't required to be atomic. There are prog. language that provide
+atomics at the level of code: Software trans memory.
+
+Behavior of threads is undefined if extern objects have no atomics.
+
+Allow library/arch. implementers to provide atomic annotations to method calls
+as well.
+
+1. @atomic around a code block which is what a P4 programmer specifies.
+2. @atomic attached to a method signature which is an implementer's job.
+2 is mostly convenience for a programmer and a compiler.
+
+Many other annotations: pure, no side effects (const method in C++)
+pure => atomic, but not the other way.
+You can use pure in atomic blocks without worrying about it.
+An extern could have an annotation called private state. Which means
+method on object a doesn't influence method on object b.
+
+control ingress {
+    atomic {
+    apply(flowlet);
+    if (ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT) {
+        apply(new_flowlet);
+    }
+    } // either guarantee it or reject it if can't happen.
+    // Frontend can reorder atomic as a single block (not much impl. effort in frontend)
+    // Backend needs to really implement an atomic.
+    // E.g., on a software router you could use locking.
+    //       On a hardware router you need to push it into one stage, may reject it.
+    apply(ecmp_group);
+    apply(ecmp_nhop);
+    apply(forward);
+}
+
+Is an atomic enough for everything?
+
+Proof: Write out everything as an atomic. Take a few more examples and write it
+is an atomic.
+
+Simulator that implements the threaded model in the most general way possible.
+
+Control flow in P4-14, only if and table invocations.
+In P4-16, action calls: A() and statements.
+P4-16 looks more and more like Domino now.
+
+https://github.com/p4lang/p4c/blob/master/testdata/p4_16_samples/strength.p4
+Controls are C++ objects with some fields and a unique method called apply.
+
+Domino to P4-16:
+
+1. Change "pkt." to "metadata.". Metadata is just a struct defined where
+
+
+Need an atomic here: https://github.com/p4lang/p4c/blob/master/testdata/p4_16_samples/vss-example.p4#L73
+
+Need an atomic here:
+        ck.clear();
+        ck.update(p.ip);
+        // Verify that packet checksum is zero
+        verify(ck.get() == 16w0, IPv4ChecksumError);
+
+Alternatively, could put an atomic here:
+
+    state parse_ipv4
+
+Or could mandate in spec that each state is atomic.
+
+There's no option in P4 to allocate a thread-local checksum unit.
+
+As a user you can define additional struct.
+
+Local storage is just local variables.
+
+https://github.com/p4lang/p4c/blob/master/testdata/p4_16_samples/vss-example.p4#L222 (local storage)
+
+You can nest controls within each other.
+
+Domino to P4-16: temporary variables need types.
+
+Deliverable: rewriting section 18.1 completely with considerable thought
+and justification.
+
+Some P4-16 idioms:
+====================
+
+1. https://github.com/p4lang/p4c/blob/master/testdata/p4_16_samples/vss-example.p4#L222  (Temporary variable)
+2. https://github.com/p4lang/p4c/blob/master/testdata/p4_14_samples_outputs/flowlet_switching-first.p4
+
