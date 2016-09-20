@@ -1,17 +1,2 @@
-1. Concurrency model.
-2. Some compelling examples
---> parser error handling
---> flowlet switching
---> actions need to be atomic
---> extern method calls need to be atomic.
-3. Show that it's not a great change to the parser.
-4. Compilation strategies for @atomic:
---> Move everything into a pipeline stage.
---> Coarse-grained locking.
---> Fine-grained locking.
-5. The catch:
-May have to reject code.
-But that's going to happen now anyway:
---> Ternary operator may not be supported.
---> Long action bodies.
---> Complex expressions. 
+1. Show that it's not a great change to the parser.
+2. Maybe write an executable spec for the concurrency model.
