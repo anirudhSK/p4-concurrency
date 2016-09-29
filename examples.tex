@@ -61,7 +61,6 @@ control ingress {
       apply(forward);
     }
 }
-%TODO: Use P4-16 syntax. Every control block needs a apply{...}
 \end{verbatim}
 
 \subsection{Comparing the two approaches}
@@ -75,4 +74,6 @@ also leads to the possibility that the programmer would write code that is
 rejected because the atomic block is too large to implement using an atomic
 hardware instruction and guarantee atomic semantics. Again, this could be
 potentially solved by better compiler error messages telling the programmer how
-to fix the program, but it adds to compiler complexity once again. 
+to fix the program, but it adds to compiler complexity once again.
+
+%TODO: Add more examples from Domino.
