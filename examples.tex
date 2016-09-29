@@ -24,44 +24,43 @@ control ingress {
 \end{verbatim}
 
 This has the correct behavior of \textit{atomically} reading the register
-\texttt{flowlet\_id}, and updating it if the condition within the if clause is
-true. It assumes the standard library extern element \texttt{register}
-(\S8.5.2) supports an atomic read and write, but nothing more.
+\texttt{flowlet\_id}, and updating it (by incrementing it:
+\url{https://github.com/p4lang/p4c/blob/master/testdata/p4_14_samples_outputs/flowlet_switching.p4#L145})
+if the condition within the if clause is true. It assumes the standard library
+extern element \texttt{register} (\S8.5.2) supports an atomic read and write,
+but nothing more.
 
 Underneath, a compiler would have to turn this conditional read-modify-write
-into a hardware instruction that atomically updates a row of memory if a
-condition is true. We later discuss how this compiler would work.
+into a hardware instruction that atomically updates a piece of memory if a
+condition is true. \S\ref{s:compiling} discusses how this compiler would work.
 
 \subsection{Using more complex extern objects}
 
 We could imagine an extern object that provides a thin wrapper around a
-hardware instruction that allows you to atomically update a register
-programmatically using one of four opcodes (+, -, *, /) based on a boolean
-condition.  A possible declaration for this extern object is given below.
+hardware instruction that allows you to atomically increment a state variable
+if a boolean condition is true.  A possible declaration for this
+extern object is given below.
 
 \begin{verbatim}
-extern ConditionalUpdater {
-  @atomic void update(bool condition, bit<4> opcode, int second_operand);
+extern Conditional++ {
+  @atomic void conditional_inc(bool condition);
   @atomic int read();
 }
 \end{verbatim}
 
-Here, \texttt{update} is declared an atomic method call by the implementer of
-the target architecture who specifies the behavior of ConditionalUpdater.  The
-behavior of ConditionalUpdater's update method is to atomically update an
-internal state variable, based on one of four opcodes and
-\texttt{second\_operand}, which is added, subtracted, multiplied, or divided
-with respect to the internal state variable.
+Here, \texttt{conditional\_inc} is declared an atomic method call by the
+implementer of the target architecture who specifies the behavior of
+\texttt{Conditional++}.  The behavior of \texttt{Conditional++}'s
+\texttt{conditional\_inc} method is to atomically increment an internal state
+variable if {\texttt condition} is true.
 
-With \texttt{ConditionalUpdater}, flowlet switching can now be written as:
-
+With \texttt{Conditional++}, flowlet switching can now be written as:
 \begin{verbatim}
 control ingress {
-  // Declare a ConditionalUpdater object shared across all control block threads
-  ConditionalUpdater conditional_updater;
+  // Declare a Conditional++ object shared across all control block threads
+  Conditional++ conditional++;
   apply {
-    conditional_updater.update(ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT, +1);
-    // TODO: Need to fix this.
+    conditional++.conditional_inc(ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT);
     apply(ecmp_group);
     apply(ecmp_nhop);
     apply(forward);
