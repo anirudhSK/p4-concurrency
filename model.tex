@@ -1,1 +1,106 @@
-% One thread spawned in response to every event for a parser or control block.
+\section{Model}
+
+We first specify a formal model for concurrency below. We discuss it at an
+abstract level, later show how it can applied to various productions within the
+P4 grammar, and finally discuss compilation strategies.
+
+An instance of a parser or control block type (\S9.2.8 of the spec) is called a
+parser or control block instance.  All computations within P4 happen inside
+these instances as specified by the statements within them (\S12).  We say a
+parser or control block is ``invoked'' when some external event triggers the
+execution of a parser instance or a control block instance.  This external
+event could be the arrival of an unparsed packet (\texttt{packet\_in}) for a
+parser instance or parsed headers (\texttt{in} or \texttt{inout} function
+arguments) for a control block.
+
+When an external event invokes a parser or control block instance, we
+semantically think of the instance launching a new thread to handle that event
+in the background, leaving the instance free to handle the next event. The
+concurrency model doesn't regulate the implementation. For instance, the number
+of threads in a thread pool is left to the implementation.  In fact, the
+implementation doesn't even need to use a thread pool. It can instead rely on
+pipelined processing, where a small portion of the work for each event is
+handled by one thread, which then passes it off to the next thread (e.g.,
+match-action pipelines).
+
+Each of the launched threads runs to completion, executing all statements
+within the control block or parser instance one after another, sequentially.
+Once the thread completes processing an event, it triggers another parser or
+control block, as specified by the target architecture.
+
+Any interleaving of threads is permitted as long as statements within a thread
+aren't reordered. The atomic units of execution within each thread's statements
+are defined, in principle, by providing an \texttt{@atomic} annotation around
+specific statements or expressions in the program. This annotation denotes that
+the computations within those statements or expressions appear to execute
+atomically/instantaneously.
+%TODO: This is not as clean as it could be. Ideally, I would annotate only statements.
+
+In practice, the P4 compiler annotates many expressions and statements atomic
+ by default, to reduce the burden on the P4 programmer.
+Statements and expressions that are atomic by default are all statements and
+expressions that do not access an extern instance, i.e., statements or
+expressions that read or write the following types of data:
+\begin{enumerate}
+\item intrinsic metadata (\S4)
+\item metadata (\S4)
+\item packet headers (\S4)
+\item local variables declared within a control block's apply block, a parser's
+state, or an action's body (\S11.2)
+\end{enumerate}
+We also include statements that recursively only include statements that read
+or write the above types of data, such as a statement that calls an action,
+which respects the conditions above.
+%TODO: Omitting local externs, such as parser checksums, because such constructs
+% currently don't even exist in P4.
+%From 11.2: "One cannot declare variables
+%with types that are only synthesized by the compiler (e.g., set<> or tuple<>),
+%or with parser, control, package or extern types. Objects of the latter types
+%must be declared using instantiations (see the next section)."
+% If we have local externs, we can add them to the list above.
+
+The rationale for not including extern instances is that extern instances
+encapsulate data-plane state, unlike the scenarios above that don't include any
+state visible to all threads. State modification through extern method calls
+cannot be declared atomic by default because depending on the extern method,
+some intermediate state may be visible to another thread, which contradicts the
+requirement that modifications be instantaneous. We recommend that method calls
+on extern instances be implemented as atomic by target architecture
+implementers, e.g., serializing all calls to a counter or register to provide
+the illusion of atomicity.
+
+Certain combination of statements are also annotated atomic by default. As an
+example, consider the statements:
+\begin{verbatim}
+x = x & 4w0;
+\end{verbatim}
+
+and
+\begin{verbatim}
+x = 4w0 & x;
+\end{verbatim},
+where x is a local variable. Then the block statement:
+
+\begin{verbatim}
+{
+  x = x & 4w0;
+  x = 4w0 & x;
+}
+\end{verbatim}
+is atomic by default because it calls no extern instance.
+
+Certain categories of statements are not atomic by default. In particular, it
+is recommended that individual method calls on extern instances be atomic, a
+pair of calls to two different extern instances is not atomic by default. An
+example is a pair of counters, say, \texttt{c1} and \texttt{c2}. While the
+increment method call for each counter appears to execute atomically, other
+statements can be interleaved between the increments to \texttt{c1} and
+\texttt{c2}, unless the programmer encloses both method calls within one atomic
+annotation.
+
+The above discussion should give a sense for how atomic is used in practice. To
+reduce programmer burden, we recommend that P4 compilers implicity or
+explicitly implement a inference procedure for conservatively inferring whether
+any given production within a grammar is atomic by default. The procedure could
+be modeled based on some of the rules given above.
+%TODO: We would ideally provide this in the appendix.
