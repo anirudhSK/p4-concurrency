@@ -2,4 +2,21 @@
 \begin{enumerate}
 \item Interactions between the control and data plane: What happens when the controller changes a table entry while a packet is being processed in the data plane? \\
 Answer: This draft doesn't deal with that case yet.
+% 1. Nesting transactions: not supported.
+% SQL supports it so that it can handle transactions within stored procedures
+% https://technet.microsoft.com/en-us/library/ms189336(v=sql.105).aspx
+% Here, either the stored procedure itself is a transaction or is called within a bigger transaction
+% We can just rejected nested transactions and have the user un-nest statements into a nested transaction.
+
+% 2. Mixing transactional and non-transactional code: not supported
+% C++ has to support it because you may mix locking with transactional code
+% https://3f993110-a-62cb3a1a-s-sites.googlegroups.com/site/tmforcplusplus/C%2B%2BTransactionalConstructs-1.1.pdf
+% Haskell's composable transactions doesn't support it.
+% http://community.haskell.org/~simonmar/papers/stm.pdf
+% It isn't fundamental.
+
+% 3. Exceptions in transactions: abort the code as though nothing happened.
+% 4. Bigger structural problem with P4: exceptions aren't even supported.
+% 5. Unstructed control flow: returns, exits
+
 \end{enumerate}
