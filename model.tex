@@ -51,13 +51,6 @@ state, or an action's body (\S11.2)
 We also include statements that recursively only include statements that read
 or write the above types of data, such as a statement that calls an action,
 which respects the conditions above.
-%TODO: Omitting local externs, such as parser checksums, because such constructs
-% currently don't even exist in P4.
-%From 11.2: "One cannot declare variables
-%with types that are only synthesized by the compiler (e.g., set<> or tuple<>),
-%or with parser, control, package or extern types. Objects of the latter types
-%must be declared using instantiations (see the next section)."
-% If we have local externs, we can add them to the list above.
 
 The rationale for not including extern instances is that extern instances
 encapsulate data-plane state, unlike the scenarios above that don't include any
