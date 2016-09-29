@@ -34,7 +34,6 @@ are defined, in principle, by providing an \texttt{@atomic} annotation around
 specific statements or expressions in the program. This annotation denotes that
 the computations within those statements or expressions appear to execute
 atomically/instantaneously.
-%TODO: This is not as clean as it could be. Ideally, I would annotate only statements.
 
 In practice, the P4 compiler annotates many expressions and statements atomic
  by default, to reduce the burden on the P4 programmer.
@@ -96,4 +95,4 @@ reduce programmer burden, we recommend that P4 compilers implicity or
 explicitly implement a inference procedure for conservatively inferring whether
 any given production within a grammar is atomic by default. The procedure could
 be modeled based on some of the rules given above.
-%TODO: We would ideally provide this in the appendix.
+%TODO: We would ideally provide a full inference procedure in the appendix.
