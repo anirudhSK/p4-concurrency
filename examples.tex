@@ -69,16 +69,85 @@ control ingress {
 }
 \end{verbatim}
 
+\subsection{More examples}
+
+We list out a few more examples in both forms (using registers and using more
+complex extern types). These examples are drawn from
+\url{https://github.com/packet-transactions/domino-examples/tree/master/domino_programs},
+which is a set of examples written in a high-level packet-processing language
+called Domino. Domino is centered around user-defined atomic blocks, so using
+our new @atomic notation, every Domino program can be written as an equivalent
+P4 program using an enclosing @atomic.
+
+\paragraph{Rate-Control Protocol (RCP)}
+
+With registers alone, RCP can be written like this.
+\begin{verbatim}
+control ingress {
+  Register<bit<32>>(1) input_traffic_Bytes;
+  Register<bit<32>>(1) sum_rtt_Tr;
+  Register<bit<32>>(1) num_pkts_with_rtt;
+  ...
+  apply {
+    @atomic{
+      bit<32> input_traffic_Bytes_tmp;
+      input_traffic_Bytes.read(0, input_traffic_Bytes_tmp);
+      input_traffic_Bytes_tmp = input_traffic_Bytes_tmp + metadata.pkt_len;
+      input_traffic_Bytes.write(input_traffic_Bytes_tmp, 0);
+      if (pkt_hdr.rtt < MAX_ALLOWABLE_RTT) {
+        bit<32> sum_rtt_Tr_tmp;
+        sum_rtt_Tr.read(0, sum_rtt_Tr_tmp);
+        sum_rtt_Tr_tmp = sum_rtt_Tr_tmp + pkt_hdr.rtt;
+        sum_rtt_Tr.write(sum_rtt_Tr_tmp, 0);
+
+        bit<32> num_pkts_with_rtt_tmp;
+        num_pkts_with_rtt.read(0, num_pkts_with_rtt_tmp);
+        num_pkts_with_rtt_tmp = num_pkts_with_rtt_tmp + 1;
+        num_pkts_with_rtt.write(num_pkts_with_rtt_tmp, 0);
+      }
+    }
+  }
+}
+\end{verbatim}
+
+With more complex extern types, it would be written as:
+\begin{verbatim}
+extern ConditionalAccumulator<T> {
+  ConditionalAccumulator();
+  void read(out T result);
+  void write(in T accumuland, bool condition);
+}
+...
+control ingress {
+  counter<bit<32>>(1, CounterType::packets_and_bytes) input_traffic_Bytes;
+  ConditionalAccumulator<bit<32>>(1) sum_rtt_Tr;
+  ConditionalAccumulator<bit<32>>(1) num_pkts_with_rtt;
+  ...
+  apply {
+    ... 
+    @atomic{
+      input_traffic_Bytes.count();
+      sum_rtt_Tr(pkt_hdr.rtt, pkt_hdr.rtt < MAX_ALLOWABLE_RTT);
+      num_pkts_with_rtt(1,    pkt_hdr.rtt < MAX_ALLOWABLE_RTT);
+    }
+  }
+}
+\end{verbatim}
+
 \subsection{Comparing the two approaches}
-The first approach using registers leads to clearer and portable code, because
-it only assumes simple registers with atomic read and write capabilities. It
-also allows the target implementer to hide potentially propreitary information
-regarding how a conditional update is actually implemented, i.e., the target
-implementer doesn't need to provide a method that exactly spells out the fact
-that it does a conditional increment. With the second approach, the target
-implementer needs to specify an external method for every stateful update that
-can be carried out using the target's hardware capabilities. This could prove
-cumbersome.
+The first approach using registers leads to portable code, because it only
+assumes simple registers with atomic read and write
+capabilities.\footnote{While the examples above suggest that registers lead to
+overly bloated code, this could be easily fixed by providing extern methods for
+registers that allows us to carry out arithmetic on registers.} It also allows
+the target implementer to hide potentially propreitary information regarding
+how a conditional update is actually implemented, i.e., the target implementer
+doesn't need to provide a method that reveals the fact that it does a
+conditional increment or a conditional accumulate.
+
+With the second approach, the target implementer needs to specify an external
+method for every stateful update that can be carried out using the target's
+hardware capabilities. This could prove cumbersome.
 
  However, the first approach puts the burden on the compiler to figure out
 exactly how to translate a block of programmer statements within a
@@ -88,5 +157,3 @@ too large to implement using an atomic hardware instruction and guarantee
 atomic semantics. This could be potentially solved by better compiler error
 messages telling the programmer how to fix the program, but it adds to compiler
 complexity once again.
-
-%TODO: Add more examples from Domino, including ones that don't compile.
