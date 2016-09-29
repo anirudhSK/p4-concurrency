@@ -32,14 +32,15 @@ but nothing more.
 
 Underneath, a compiler would have to turn this conditional read-modify-write
 into a hardware instruction that atomically updates a piece of memory if a
-condition is true. \S\ref{s:compiling} discusses how this compiler would work.
+condition is true. The compiler section of this draft discusses how this
+compiler would work.
 
-\subsection{Using more complex extern objects}
+\subsection{Using more complex extern types}
 
-We could imagine an extern object that provides a thin wrapper around a
-hardware instruction that allows you to atomically increment a state variable
-if a boolean condition is true.  A possible declaration for this
-extern object is given below.
+We could imagine an extern type that provides a thin wrapper around a
+hardware instruction that allows a program to atomically increment a state
+variable if a boolean condition is true.  A possible declaration for this
+extern type is given below.
 
 \begin{verbatim}
 extern Conditional++ {
@@ -72,13 +73,20 @@ control ingress {
 The first approach using registers leads to clearer and portable code, because
 it only assumes simple registers with atomic read and write capabilities. It
 also allows the target implementer to hide potentially propreitary information
-regarding how a conditional update is actually implemented. However, it puts
-the burden on the compiler to figure out exactly how to translate a block of
-programmer statements within a \texttt{@atomic} into hardware instructions. It
-also leads to the possibility that the programmer would write code that is
-rejected because the atomic block is too large to implement using an atomic
-hardware instruction and guarantee atomic semantics. Again, this could be
-potentially solved by better compiler error messages telling the programmer how
-to fix the program, but it adds to compiler complexity once again.
+regarding how a conditional update is actually implemented, i.e., the target
+implementer doesn't need to provide a method that exactly spells out the fact
+that it does a conditional increment. With the second approach, the target
+implementer needs to specify an external method for every stateful update that
+can be carried out using the target's hardware capabilities. This could prove
+cumbersome.
+
+ However, the first approach puts the burden on the compiler to figure out
+exactly how to translate a block of programmer statements within a
+\texttt{@atomic} into hardware instructions. It also leads to the possibility
+that the programmer writes code that is rejected because the atomic block is
+too large to implement using an atomic hardware instruction and guarantee
+atomic semantics. This could be potentially solved by better compiler error
+messages telling the programmer how to fix the program, but it adds to compiler
+complexity once again.
 
 %TODO: Add more examples from Domino, including ones that don't compile.

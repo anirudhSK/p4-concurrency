@@ -69,11 +69,12 @@ A more detailed explanation of these two steps is available at:
 A similar approach can be used for NPU pipelines as well. The first step is
 identical to the one above. The second step is different. After whittling down
 a programmer's atomic block into smaller atomic blocks, each resulting atomic
-block can be mapped to a processor core or microengine (this arrangement is
+block can be mapped to a processor core or microengine, instead of an atomic
+hardware instruction.\footnote{This arrangement is
 called a context pipeline because each stage in the pipeline carries out a
 different context of packet processing, e.g., classification, policing,
 metering, etc.: \S3.2.1 of
-\url{http://www.cs.ucr.edu/~bhuyan/cs162/IXP2400.pdf})
+\url{http://www.cs.ucr.edu/~bhuyan/cs162/IXP2400.pdf}.}
 
 \subsection{Privatization}
 

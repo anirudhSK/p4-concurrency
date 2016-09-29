@@ -1,4 +1,6 @@
 \section{Frequently asked questions}
+\label{s:faq}
+
 \begin{enumerate}
 \item What happens when the controller changes a table entry while a packet is
 being processed in the data plane? \\
@@ -9,62 +11,60 @@ sees the new table entry or the old one, but not a muddled combination of the
 two.
 
 \item What about nested atomic blocks?\\
-We can take one of two equivalent approaches. Either, we forbid nesting
-atomic blocks within each other, or the compiler removes all nested atomic
-blocks and preserves only the outermost atomic annotation. This is the approach
-SQL, when it comes to nested transactions, where one transaction calls a stored
-procedure, which might itself run as a transaction. Here, when the stored
-procedure (the inner transaction) commits, it has no effect until the outer
-transaction commits, at which point it is commited as well
+We can take one of two equivalent approaches. Either, we forbid nesting atomic
+blocks within each other, or the compiler removes all nested atomic blocks and
+preserves only the outermost atomic annotation. This is the SQL approach to
+nested transactions (the database analogue of atomic blocks).  Here one
+transaction calls a stored procedure, which might itself run as a transaction.
+When the stored procedure (the inner transaction) commits, it has no effect
+until the outer transaction commits, at which point it is commited as well
 (\url{https://technet.microsoft.com/en-us/library/ms189336(v=sql.105).aspx}).
 
 \item Atomic guarantees sound hard to support?
 Yes, they probably are. They require work in the compiler to support the
-general case of user-defined atomic blocks, which go beyond the language
-defaults. They also require work in the compiler to provide reasonable error
+general case of user-defined atomic blocks, which go beyond the default atomic
+annotations. They also require work in the compiler to provide reasonable error
 messages when an atomic block is rejected.
 
 However, I contend it is better than the alternative, which is to expect the
 programmer to invoke target-specific atomic methods. This is both unportable
 and requires a target implementer to unnecessarily reveal the target's details
 to the programmer. Besides implementing the required logic in the compiler
-isn't all that hard: it is probably less than 500 lines of code to do the
-required program analysis to extract minimal atomic blocks. We could also
-conservatively restict the complexity of the code within the atomic block, just
-like we do with the complexity of the expression within the verify statement
-today.
+isn't all that hard: it is probably a few hundred lines of code to do the
+required program analysis to whittle down a programmer's atomic block to
+minimal atomic blocks. We could also conservatively restict the complexity of
+the code within the atomic block, just like we do with the complexity of the
+expression within P4's \texttt{verify} statement today.
 
 \item Are we going to have an entire spectrum of weak/relaxed atomicity models,
-like every language that has gone down the garden path of transactional memory?\\
+like every language that has gone down the garden path of atomic blocks?\\
 No. In cases where this has happened (such as C++:
 \url{https://3f993110-a-62cb3a1a-s-sites.googlegroups.com/site/tmforcplusplus/C\%2B\%2BTransactionalConstructs-1.1.pdf}
-and \url{http://en.cppreference.com/w/cpp/language/transactional\_memory}), this was
-the result of interoperability with existing forms of synchronization such as locks, volatiles,
-condition variables, and mutexes, which didn't provide the same guarantees as atomic
-blocks or transactional memory, and which could be accessed both within transactional
-and non-transactional blocks.
+and \url{http://en.cppreference.com/w/cpp/language/transactional\_memory}),
+this was the result of interoperability with existing forms of synchronization
+such as locks, volatiles, condition variables, and mutexes, which didn't
+provide the same guarantees as atomic blocks, and which could be accessed both
+within atomic and non-atomic blocks.
 
-I don't think this is fundamental. For instance, Haskell's STM implementation
-(\url{http://community.haskell.org/~simonmar/papers/stm.pdf}) doesn't have
-relaxed or weaker forms of atomicity. We can take the same approach with P4 and
-make atomic the only form of concurrency.
+This spectrum of models is fundamental. For instance, Haskell's STM
+implementation (\url{http://community.haskell.org/~simonmar/papers/stm.pdf})
+doesn't have relaxed or weaker forms of atomicity. We can take the same
+approach with P4 and make atomic the only form of concurrency.
 
 \item What about exceptions within @atomic block? \\
-Typically, transactions (the database equivalent of @atomic) abort on
-exceptions.  It's as though the transaction never ran. P4 doesn't have an
-exception handling mechanism (the verify statement within the parser state
-machine can be viewed as syntactic sugar for transitioning to the reject state,
-just like any other statement that transitions to the reject state in the
-parser state machine). Without exception handling, every @atomic block runs to
-completion.
+Typically, database transactions abort on exceptions.  It's as though the
+transaction never ran. P4 doesn't have an exception handling mechanism (the
+verify statement within the parser state machine can be viewed as syntactic
+sugar for transitioning to the reject state, just like any other statement that
+transitions to the reject state in the parser state machine). Without exception
+handling, every @atomic block runs to completion.
 
-\item Can operations on private externs be made atomic by default? \\
-Certainly. Except there is no such language construct for private
-externs today. Local variables within a parser body or a control block's apply
-method cannot be externs and all externs declared within a parser or control
-declaration are global and shared by all instances by default. This would be
-useful for externs such as parser checksums that run an independent instance
-for each thread.
+\item Can operations on local externs be made atomic by default? \\
+Yes. Except there is no such language construct for local externs today. Local
+variables within a parser body or a control block's apply method cannot be
+externs and all externs declared within a parser or control declaration are
+global and shared by all instances by default. This would be useful for externs
+such as parser checksums that run an independent instance for each thread.
 
 % 5. Unstructed control flow: returns, exits
 \end{enumerate}
