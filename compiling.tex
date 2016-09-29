@@ -1,9 +1,82 @@
 \section{Compiling atomics}
 
-\subsection{Pipelining}
+We outline a few strategies for compiling atomics to different target
+architectures. We focus on the general case of user-defined atomic blocks.  The
+default atomic annotations for stateless constructs and atomic method calls
+require very little work in the compiler.
+
+\subsection{Pipelining into match-action pipelines}
+On a pipelined switch architecture, such as the RMT architecture or Intel's
+FlexPipe, state is local to a stage of the pipeline because it is technically
+challenging to share state between pipeline stages through multi-ported
+memories.
+
+This means all read-modify-write patterns on a given piece of state have to be
+completed within a single stage of the pipeline. Given an arbitrary large
+atomic block, the compiler first needs to decompose this into as many atomic
+blocks as possible without violating the atomicity of the original large atomic
+block.  Each of these new atomic blocks needs to be mapped to a stage of the
+pipeline, while respecting dependencies between them.
+
+As an example, suppose the compiler were handed the code fragment below (here
+\texttt{x_register} and \texttt{y_register} are register arrays of size 1).
+\begin{verbatim}
+apply {
+  @atomic {
+    bit<32> x_tmp;
+    x_tmp = x_register.read(x_tmp, 0);
+    x_tmp = x_tmp + 1;
+    x_register.write(0, x_tmp);
+    bit<32> y_tmp;
+    y_tmp = y_register.read(y_tmp, 0);
+    y_tmp = y_tmp + x_tmp;
+    y_register.write(0, y_tmp);
+  }
+} 
+\end{verbatim}
+
+The compiler would then whittle it down into the smaller atomic blocks.
+\begin{verbatim}
+apply {
+  @atomic {
+    bit<32> x_tmp;
+    x_tmp = x_register.read(x_tmp, 0);
+    x_tmp = x_tmp + 1;
+    x_register.write(0, x_tmp);
+  }
+  @atomic{
+    bit<32> y_tmp;
+    y_tmp = y_register.read(y_tmp, 0);
+    y_tmp = y_tmp + x_tmp;
+    y_register.write(0, y_tmp);
+  }
+}
+\end{verbatim}
+
+It would then infer that the second atomic block depended on the output of the
+first and respect these dependencies when mapping them to a pipeline.
+
+The second step is actually mapping these newly minted atomic blocks to
+hardware instructions that implement them. For example, a simple increment
+instruction suffices for the first block, while we need an atomic
+read-add-write for the second one.
+
+A more detailed explanation of these two steps is available at:
+\url{http://dl.acm.org/citation.cfm?doid=2934872.2934900}
+
+\subsection{Pipelining into NPU pipelines}
+A similar approach can be used for NPU pipelines as well. The first step is
+identical to the one above. The second step is different. After whittling down
+a programmer's atomic block into smaller atomic blocks, each resulting atomic
+block can be mapped to a processor core or microengine (this arrangement is
+called a context pipeline because each stage in the pipeline carries out a
+different context of packet processing, e.g., classification, policing,
+metering, etc.: \S3.2.1 of
+\url{http://www.cs.ucr.edu/~bhuyan/cs162/IXP2400.pdf})
 
 \subsection{Privatization}
 
-\subsection{Fine-grained locking}
-
-\subsection{Native software transactional memory}
+In some cases, it may be possible to compute a stateful variable independently
+in two different threads using a private copy in each thread, merging them
+later. An example is a counter, which can be implemented using a private
+counter in each of the threads in a thread pool, merging them later.
