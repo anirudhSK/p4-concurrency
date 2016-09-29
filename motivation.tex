@@ -1,1 +1,38 @@
-% 1. Flowlet switching example.
+\section{Motivation}
+P4 lacks a formal concurrency model. This is important when considering
+interactions between multiple packet processors in the data plane. These packet
+processors could be match-action tables, pipelines, or cores. Further, these
+packet processors can share state. As an example, consider flowlet switching
+from the SIGCOMM 2015 P4 tutorial. The state stored in register
+\texttt{flowlet\_id} is shared by two tables:
+
+\begin{enumerate}
+
+\item It is read in the action \texttt{lookup\_flowlet\_map} in the
+\texttt{flowlet} table
+
+\item It is later written in the action \texttt{update\_flowlet\_id} in the
+\texttt{new\_flowlet} table.
+
+\end{enumerate}
+
+Here's the relevant code snippet:
+\begin{verbatim}
+control ingress {
+    apply(flowlet);
+    if (ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT) {
+        apply(new_flowlet);
+    }
+    apply(ecmp_group);
+    apply(ecmp_nhop);
+    apply(forward);
+}
+\end{verbatim}
+In the snippet above, \texttt{flowlet} reads a piece of state
+(\texttt{flowlet\_id}) that \texttt{new\_flowlet} writes. Because there is no
+support for locking within P4, this could lead to a race, where a second packet
+reads an old value of \texttt{flowlet\_id}. It is unclear what behavior to
+expect for these programs because P4 lacks a formal concurrency model when
+state is modified in the data plane. This draft is an attempt at fixing this.
+
+
