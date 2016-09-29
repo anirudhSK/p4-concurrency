@@ -71,13 +71,31 @@ control ingress {
 
 \subsection{More examples}
 
-We list out a few more examples in both forms (using registers and using more
-complex extern types). These examples are drawn from
+We list out another example in both forms (using registers and using more
+complex extern types). This example is drawn from
 \url{https://github.com/packet-transactions/domino-examples/tree/master/domino_programs},
 which is a set of examples written in a high-level packet-processing language
 called Domino. Domino is centered around user-defined atomic blocks, so using
-our new @atomic notation, every Domino program can be written as an equivalent
-P4 program using an enclosing @atomic.
+our new @atomic notation, every Domino program can be transformed into an
+equivalent P4 program using an enclosing @atomic. This transformation is pretty
+mechanical:
+\begin{enumerate}
+\item Where Domino uses a state variable, we use a register in P4.
+\item If Domino assigns to a state variable, we use register.write() in P4.
+\item Similarly if Domino accesses a state variable, we use register.read() in P4
+to read it into a temporary local variable.
+\item We then use the temporary local variable in place of the state variable.
+\item So, the expression \texttt{s = s + 1;}, where s is a state variable with a 32-bit
+int type, would
+turn into:
+\begin{verbatim}
+Register<bit<32>> (1) s;
+bit<32> s_tmp = register_read(0, s);
+s_tmp = s_tmp + 1;
+register_write(0, s_tmp);
+\end{verbatim}
+
+\end{enumerate}
 
 \paragraph{Rate-Control Protocol (RCP)}
 
