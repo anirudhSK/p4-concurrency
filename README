@@ -1,5 +1,7 @@
 Some notes on a proposal for a P4 concurrency model.
 
+Compile using: pdflatex draft.tex
+
 TM refs:
 1. C++ TM proposal: https://3f993110-a-62cb3a1a-s-sites.googlegroups.com/site/tmforcplusplus/C%2B%2BTransactionalConstructs-1.1.pdf
 
