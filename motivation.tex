@@ -16,9 +16,12 @@ from the SIGCOMM 2015 P4 tutorial. The state stored in register
 
 \end{enumerate}
 
-Here's the relevant code snippet:
+Here's the relevant code snippet for flowlet switching, written in P4-16.
 \begin{verbatim}
 control ingress {
+  ...
+  ...
+  apply {
     apply(flowlet);
     if (ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT) {
         apply(new_flowlet);
@@ -26,6 +29,7 @@ control ingress {
     apply(ecmp_group);
     apply(ecmp_nhop);
     apply(forward);
+  }
 }
 \end{verbatim}
 In the snippet above, \texttt{flowlet} reads a piece of state
@@ -34,5 +38,3 @@ support for locking within P4, this could lead to a race, where a second packet
 reads an old value of \texttt{flowlet\_id}. It is unclear what behavior to
 expect for these programs because P4 lacks a formal concurrency model when
 state is modified in the data plane. This draft is an attempt at fixing this.
-
-

@@ -16,7 +16,7 @@ SQL, when it comes to nested transactions, where one transaction calls a stored
 procedure, which might itself run as a transaction. Here, when the stored
 procedure (the inner transaction) commits, it has no effect until the outer
 transaction commits, at which point it is commited as well
-(https://technet.microsoft.com/en-us/library/ms189336(v=sql.105).aspx).
+(\url{https://technet.microsoft.com/en-us/library/ms189336(v=sql.105).aspx}).
 
 \item Atomic guarantees sound hard to support?
 Yes, they probably are. They require work in the compiler to support the

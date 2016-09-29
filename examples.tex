@@ -7,6 +7,9 @@ one of two ways. We later discuss pros and cons of each approach.
 
 \begin{verbatim}
 control ingress {
+  ...
+  ...
+  apply {
     @atomic{
       apply(flowlet);
       if (ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT) {
@@ -16,6 +19,7 @@ control ingress {
     apply(ecmp_group);
     apply(ecmp_nhop);
     apply(forward);
+  }
 }
 \end{verbatim}
 
@@ -35,31 +39,33 @@ hardware instruction that allows you to atomically update a register
 programmatically using one of four opcodes (+, -, *, /) based on a boolean
 condition.  A possible declaration for this extern object is given below.
 
+\begin{verbatim}
 extern ConditionalUpdater {
   @atomic void update(bool condition, bit<4> opcode, int second_operand);
   @atomic int read();
 }
+\end{verbatim}
 
 Here, \texttt{update} is declared an atomic method call by the implementer of
 the target architecture who specifies the behavior of ConditionalUpdater.  The
 behavior of ConditionalUpdater's update method is to atomically update an
 internal state variable, based on one of four opcodes and
-\texttt{second_operand}, which is added, subtracted, multiplied, or divided
+\texttt{second\_operand}, which is added, subtracted, multiplied, or divided
 with respect to the internal state variable.
 
 With \texttt{ConditionalUpdater}, flowlet switching can now be written as:
 
 \begin{verbatim}
 control ingress {
-    // Declare a ConditionalUpdater object shared across all control block threads
-    ConditionalUpdater conditional_updater;
-    apply {
-      conditional_updater.update(ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT, +1);
-      // TODO: Need to fix this.
-      apply(ecmp_group);
-      apply(ecmp_nhop);
-      apply(forward);
-    }
+  // Declare a ConditionalUpdater object shared across all control block threads
+  ConditionalUpdater conditional_updater;
+  apply {
+    conditional_updater.update(ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT, +1);
+    // TODO: Need to fix this.
+    apply(ecmp_group);
+    apply(ecmp_nhop);
+    apply(forward);
+  }
 }
 \end{verbatim}
 
