@@ -1,7 +1,7 @@
 \section{Model}
 
-We first specify a formal model for concurrency below. We discuss it at an
-abstract level, show how it can applied to various productions within the P4
+We first specify a formal model for concurrency below. We provide a high-level
+overview and then show how it can be applied to various productions within the P4
 grammar. The compiler section of this draft discusses compilation strategies.
 
 An instance of a parser or control block type (\S9.2.8 of the spec) is called a
@@ -11,7 +11,7 @@ parser or control block is ``invoked'' when some external event triggers the
 execution of a parser instance or a control block instance.  This external
 event could be the arrival of an unparsed packet (\texttt{packet\_in}) for a
 parser instance or parsed headers (\texttt{in} or \texttt{inout} function
-arguments) for a control block.
+arguments) for a control block instance.
 
 When an event invokes a parser or control block instance, we can conceptually
 think of the instance launching a new thread to handle that event in the
@@ -56,12 +56,13 @@ this.}.
 
 \end{enumerate}
 We also include statements that recursively only include statements that read
-or write the above types of data, such as a statement that calls an action,
+or write the above types of data. An example is a statement that calls an action,
 which respects the conditions above.
 %Note that this is better than saying actions are atomic by default, because
 %that might be too much to begin with.
 
-The rationale for not including extern instances is that extern instances
+The rationale for not including extern instances in the atomic-by-default list above
+ is that extern instances
 encapsulate data-plane state, unlike the scenarios above that don't include any
 state visible to all threads. State modification through extern method calls
 cannot be declared atomic by default because depending on the extern method,
@@ -69,7 +70,9 @@ some intermediate state may be visible to another thread, which contradicts the
 requirement that modifications be instantaneous. We recommend that method calls
 on extern instances be implemented as atomic by target architecture
 implementers, e.g., serializing all calls to a counter or register to provide
-the illusion of atomicity.
+the illusion of atomicity. An atomic method call can be specified by using the
+\texttt{@atomic} notation within an extern declaration (the next section provides
+an example).
 
 Certain combination of statements are also annotated atomic by default. As an
 example, consider the statements:

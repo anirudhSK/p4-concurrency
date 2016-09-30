@@ -75,17 +75,18 @@ We list out another example in both forms (using registers and using more
 complex extern types). This example is drawn from
 \url{https://github.com/packet-transactions/domino-examples/tree/master/domino_programs},
 which is a set of examples written in a high-level packet-processing language
-called Domino. Domino is centered around user-defined atomic blocks, so using
-our new @atomic notation, every Domino program can be transformed into an
-equivalent P4 program using an enclosing @atomic. This transformation is pretty
-mechanical:
+called Domino. Domino is centered around user-defined atomic blocks. Hence, using
+our \texttt{@atomic} notation, every Domino program can be transformed into an
+equivalent P4 program using an enclosing \texttt{@atomic}---so long as the standard
+library supports registers with atomic read and write method. This transformation
+is fairly mechanical:
 \begin{enumerate}
 \item Where Domino uses a state variable, we use a register in P4.
 \item If Domino assigns to a state variable, we use register.write() in P4.
 \item Similarly if Domino accesses a state variable, we use register.read() in P4
 to read it into a temporary local variable.
 \item We then use the temporary local variable in place of the state variable.
-\item So, the expression \texttt{s = s + 1;}, where s is a state variable with a 32-bit
+\item So, the Domino expression \texttt{s = s + 1;}, where s is a state variable with a 32-bit
 int type, would
 turn into:
 \begin{verbatim}
@@ -155,17 +156,17 @@ control ingress {
 \subsection{Comparing the two approaches}
 The first approach using registers leads to portable code, because it only
 assumes simple registers with atomic read and write
-capabilities.\footnote{While the examples above suggest that registers lead to
-overly bloated code, this could be easily fixed by providing extern methods for
-registers that allows us to carry out arithmetic on registers.} It also allows
-the target implementer to hide potentially propreitary information regarding
-how a conditional update is actually implemented, i.e., the target implementer
+capabilities.\footnote{While the RCP example above suggests that registers lead
+to overly bloated code, this could be easily fixed by using programmer-defined
+atomic actions that provide a wrapper around the boilerplate of reading from a
+register, then modifying, then writing it back.} It also allows the target
+implementer to hide potentially propreitary information regarding how a
+conditional update is actually implemented, i.e., the target implementer
 doesn't need to provide a method that reveals the fact that it does a
-conditional increment or a conditional accumulate.
-
-With the second approach, the target implementer needs to specify an external
-method for every stateful update that can be carried out using the target's
-hardware capabilities. This could prove cumbersome.
+conditional increment or a conditional accumulate. With the second approach,
+the target implementer needs to specify an external method for every stateful
+update that can be carried out using the target's hardware capabilities. This
+could prove cumbersome.
 
  However, the first approach puts the burden on the compiler to figure out
 exactly how to translate a block of programmer statements within a
