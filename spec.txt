@@ -86,3 +86,6 @@ control ingress {
   }
 }
 \end{verbatim}
+
+Note that @atomic is only supported within a control-flow block because block
+statements cannot appear within a parser.
