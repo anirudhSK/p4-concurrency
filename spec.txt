@@ -1,0 +1,88 @@
+An instance of a parser or control block type (\S9.2.8 of the spec) is called a
+parser or control block instance.  All computations within P4 happen inside
+these instances as specified by the statements (\S12) within them.  We say a
+parser or control block is ``invoked'' when some external event triggers the
+execution of a parser instance or a control block instance.  This external
+event could be the arrival of an unparsed packet (\texttt{packet\_in}) for a
+parser instance or parsed headers (\texttt{in} or \texttt{inout} function
+arguments) for a control block instance.
+
+When an event invokes a parser or control block instance, we can conceptually
+think of the instance launching a new thread to handle that event in the
+background.  The instance is now free to handle the next event. The concurrency
+model doesn't specify the implementation. For instance, the number of threads
+in a thread pool is implementation-defined.  In fact, the implementation
+doesn't even need to use a thread pool. It can instead use a processing
+pipeline, where a small portion of the work for each event is handled by one
+thread, which then passes off the event to the next thread (e.g., match-action
+pipelines).
+
+Each of the launched threads runs to completion, executing all statements
+within the control block or parser instance one after another, sequentially.
+Once the thread completes processing an event within an instance, it triggers
+an event within another parser or control block instance, as specified by the
+target architecture. Any interleaving of threads is permitted as long as
+statements within a thread aren't reordered and executed sequentially.
+
+So long as the statements within a thread access only thread-local storage
+(intrinsic metadata, metadata, packet headers, local variables, local externs),
+the behavior of the P4 program should be clear: any interleaving of statements
+from different threads produces the same output because each thread operates on
+only its own local storage---not globally shared storage.
+
+When statements within a thread access non-thread-local storage through static
+externs (the default for externs) for counters, registers, and other stateful
+objects, we need to define what updates to state appear to execute atomically
+or instantaneously. These updates define what updated state values are visible
+to other threads. By default, we require all methods on extern instances to be
+atomic, i.e., executing a method call on an extern instance happens atomically.
+For instance, a counter (a standard library extern) supports an atomic
+increment. If a P4 program made three calls to a counter instance initialized
+to 0, the counter's value progresses from 0 to 1 to 2 to 3 monotonically. Put
+differently, if any thread sees the value 1, no other thread observes 0 after
+that.
+
+Combinations of atomic method calls are not atomic by default. To allow users
+to specify that larger blocks of code should be executed atomically, we provide
+an @atomic annotation that is attached to block statements. This is useful when
+specifying read-modify-write operations on registers that need to be executed
+atomically for correctness. An example is flowlet switching, which was earlier
+written as:
+
+\begin{verbatim}
+control ingress {
+  ...
+  ...
+  apply {
+    apply(flowlet);
+    if (ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT) {
+        apply(new_flowlet);
+    }
+    apply(ecmp_group);
+    apply(ecmp_nhop);
+    apply(forward);
+  }
+}
+\end{verbatim}
+
+This program reads the register flowlet_id in the flowlet table and then writes
+it in the new_flowlet table, implicitly assuming atomic execution. With the new
+annotation, it would look like the program below:
+
+\begin{verbatim}
+control ingress {
+  ...
+  ...
+  apply {
+    @atomic{
+      apply(flowlet);
+      if (ingress_metadata.flow_ipg > FLOWLET_INACTIVE_TOUT) {
+          apply(new_flowlet);
+      }
+    }
+    apply(ecmp_group);
+    apply(ecmp_nhop);
+    apply(forward);
+  }
+}
+\end{verbatim}
